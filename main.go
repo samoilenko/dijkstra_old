@@ -68,18 +68,6 @@ func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 
 		g.Visited[neighborVertex].Weight = g.Visited[from].Weight + neighborWeight
 		g.Visited[neighborVertex].Path = g.Visited[from].Path + neighborVertex
-
-		// if _, ok := g.Visited[neighborVertex]; !ok {
-		// 	g.Visited[neighborVertex] = &VisitedVertex{
-		// 		Weight: g.Visited[from].Weight + neighborWeight,
-		// 		Path:   g.Visited[from].Path + neighborVertex,
-		// 	}
-		// }
-
-		// if g.Visited[from].Weight+neighborWeight < g.Visited[neighborVertex].Weight {
-		// 	g.Visited[neighborVertex].Weight = g.Visited[from].Weight + neighborWeight
-		// 	g.Visited[neighborVertex].Path = g.Visited[from].Path + neighborVertex
-		// }
 	}
 
 	newVertexSource := g.getLowestVisitedVertexName()
