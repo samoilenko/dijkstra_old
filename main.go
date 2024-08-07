@@ -7,8 +7,8 @@ import (
 )
 
 type VisitedVertex struct {
-	Weight    int32
 	Path      string
+	Weight    int32
 	IsVisited bool
 }
 
@@ -51,32 +51,44 @@ func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 		return 0, "", errors.New(from + " does not exist in Graph")
 	}
 
-	if _, ok := g.Visited[from]; !ok {
-		g.Visited[from] = &VisitedVertex{Path: from}
-	}
+	queue := make(chan string, 3)
+	defer func() {
+		if _, closed := <-queue; closed != false {
+			close(queue)
+		}
+	}()
+	queue <- from
 
-	g.Visited[from].IsVisited = true
-
-	for neighborVertex, neighborWeight := range g.Vertexes[from] {
-		if _, ok := g.Visited[neighborVertex]; ok && g.Visited[from].Weight+neighborWeight >= g.Visited[neighborVertex].Weight {
-			continue
+	for neighborVertexName := range queue {
+		if _, ok := g.Visited[neighborVertexName]; !ok {
+			g.Visited[neighborVertexName] = &VisitedVertex{Path: neighborVertexName}
 		}
 
-		if _, ok := g.Visited[neighborVertex]; !ok {
-			g.Visited[neighborVertex] = &VisitedVertex{}
+		g.Visited[neighborVertexName].IsVisited = true
+
+		for neighborVertex, neighborWeight := range g.Vertexes[neighborVertexName] {
+			if _, ok := g.Visited[neighborVertex]; ok && g.Visited[neighborVertexName].Weight+neighborWeight >= g.Visited[neighborVertex].Weight {
+				continue
+			}
+
+			if _, ok := g.Visited[neighborVertex]; !ok {
+				g.Visited[neighborVertex] = &VisitedVertex{}
+			}
+
+			g.Visited[neighborVertex].Weight = g.Visited[neighborVertexName].Weight + neighborWeight
+			g.Visited[neighborVertex].Path = g.Visited[neighborVertexName].Path + neighborVertex
 		}
 
-		g.Visited[neighborVertex].Weight = g.Visited[from].Weight + neighborWeight
-		g.Visited[neighborVertex].Path = g.Visited[from].Path + neighborVertex
+		newVertexSource := g.getLowestVisitedVertexName()
+		if newVertexSource == "" {
+			close(queue)
+			return g.Visited[neighborVertexName].Weight, g.Visited[neighborVertexName].Path, nil
+		} else {
+			queue <- newVertexSource
+		}
 	}
 
-	newVertexSource := g.getLowestVisitedVertexName()
-
-	if newVertexSource == "" {
-		return g.Visited[from].Weight, g.Visited[from].Path, nil
-	}
-
-	return g.Calculate(newVertexSource)
+	return 0, "", nil
 }
 
 func main() {
