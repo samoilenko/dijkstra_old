@@ -1,20 +1,28 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"math"
 )
 
 type VisitedVertex struct {
-	Path      string
-	Weight    int32
-	IsVisited bool
+	Name   string
+	Path   string
+	Weight int32
+	Index  int
+}
+
+func (v *VisitedVertex) GetValue() int32 {
+	return v.Weight
+}
+
+func (v *VisitedVertex) SetIndex(index int) {
+	v.Index = index
 }
 
 type Graph struct {
 	Vertexes map[string]map[string]int32
 	Visited  map[string]*VisitedVertex
+	Heap     *HeapMin
 }
 
 func (g *Graph) AddVertex(vertexNameA, vertexNameB string, weight int32) {
@@ -33,58 +41,45 @@ func (g *Graph) AddVertex(vertexNameA, vertexNameB string, weight int32) {
 	g.Vertexes[vertexNameB] = vertexB
 }
 
-func (g *Graph) getLowestVisitedVertexName() string {
-	var vertexName string
-	var min int32 = math.MaxInt32
-	for visitedVertexName, visitedVertex := range g.Visited {
-		if !visitedVertex.IsVisited && min > visitedVertex.Weight {
-			vertexName = visitedVertexName
-			min = visitedVertex.Weight
-		}
-	}
-
-	return vertexName
-}
-
 func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 	if _, ok := g.Vertexes[from]; !ok {
-		return 0, "", errors.New(from + " does not exist in Graph")
+		return 0, "", fmt.Errorf("%s does not exist in Graph", from)
 	}
 
-	queue := make(chan string, 3)
-	defer func() {
-		if _, closed := <-queue; closed != false {
-			close(queue)
-		}
-	}()
+	queue := make(chan string, 1)
+	defer close(queue)
 	queue <- from
 
-	for neighborVertexName := range queue {
-		if _, ok := g.Visited[neighborVertexName]; !ok {
-			g.Visited[neighborVertexName] = &VisitedVertex{Path: neighborVertexName}
+	for currentVertexName := range queue {
+		if _, ok := g.Visited[currentVertexName]; !ok {
+			g.Visited[currentVertexName] = &VisitedVertex{Path: currentVertexName, Name: currentVertexName}
 		}
 
-		g.Visited[neighborVertexName].IsVisited = true
+		for neighborVertexName, neighborWeight := range g.Vertexes[currentVertexName] {
+			destinationWeight := g.Visited[currentVertexName].Weight + neighborWeight
 
-		for neighborVertex, neighborWeight := range g.Vertexes[neighborVertexName] {
-			if _, ok := g.Visited[neighborVertex]; ok && g.Visited[neighborVertexName].Weight+neighborWeight >= g.Visited[neighborVertex].Weight {
+			// if vertex has been visited and new weight is bigger than current weight then go to the next neighbor
+			if _, ok := g.Visited[neighborVertexName]; ok && destinationWeight >= g.Visited[neighborVertexName].Weight {
 				continue
 			}
 
-			if _, ok := g.Visited[neighborVertex]; !ok {
-				g.Visited[neighborVertex] = &VisitedVertex{}
+			if _, ok := g.Visited[neighborVertexName]; !ok {
+				g.Visited[neighborVertexName] = &VisitedVertex{Name: neighborVertexName}
+			} else {
+				g.Heap.Delete(g.Visited[neighborVertexName].Index)
 			}
 
-			g.Visited[neighborVertex].Weight = g.Visited[neighborVertexName].Weight + neighborWeight
-			g.Visited[neighborVertex].Path = g.Visited[neighborVertexName].Path + neighborVertex
+			g.Visited[neighborVertexName].Weight = destinationWeight
+			g.Visited[neighborVertexName].Path = g.Visited[currentVertexName].Path + neighborVertexName
+			g.Heap.Add(g.Visited[neighborVertexName])
 		}
 
-		newVertexSource := g.getLowestVisitedVertexName()
-		if newVertexSource == "" {
-			close(queue)
-			return g.Visited[neighborVertexName].Weight, g.Visited[neighborVertexName].Path, nil
+		newVertexSource := g.Heap.GetRoot()
+		if newVertexSource == nil {
+			// close(queue)
+			return g.Visited[currentVertexName].Weight, g.Visited[currentVertexName].Path, nil
 		} else {
-			queue <- newVertexSource
+			queue <- newVertexSource.Name
 		}
 	}
 
@@ -92,35 +87,12 @@ func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 }
 
 func main() {
-	graph := Graph{
-		Vertexes: make(map[string]map[string]int32),
-		Visited:  make(map[string]*VisitedVertex),
-	}
+	// f, err := os.Create("cpu.pprof")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// pprof.StartCPUProfile(f)
+	// defer pprof.StopCPUProfile()
 
-	graph.AddVertex("D", "A", 4)
-	graph.AddVertex("D", "E", 2)
-	graph.AddVertex("A", "E", 4)
-	graph.AddVertex("A", "C", 5)
-	// graph.AddVertex("A", "C", 4)
-	graph.AddVertex("E", "G", 5)
-	// graph.AddVertex("E", "G", 1)
-	graph.AddVertex("E", "C", 4)
-	graph.AddVertex("C", "G", 5)
-	graph.AddVertex("C", "F", 5)
-	graph.AddVertex("C", "B", 2)
-	graph.AddVertex("G", "F", 5)
-	graph.AddVertex("B", "F", 2)
-
-	// graph.AddVertex("G", "H", 5)
-	// graph.AddVertex("G", "I", 4)
-	// graph.AddVertex("I", "J", 2)
-
-	weight, path, err := graph.Calculate("D")
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	fmt.Println(weight, path)
+	fmt.Println("run tests with the following command: go test -race -v main.go main_test.go heapMin.go")
 }
