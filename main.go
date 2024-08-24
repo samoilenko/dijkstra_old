@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"runtime/debug"
 )
 
 type VisitedVertex struct {
-	Name   string
-	Path   string
+	Name   []byte
+	Path   []byte
 	Weight int32
 	Index  int
 }
@@ -19,80 +20,90 @@ func (v *VisitedVertex) SetIndex(index int) {
 	v.Index = index
 }
 
+func NewGraph() *Graph {
+	return &Graph{
+		Vertexes: NewMap[*Map[int32]](),
+		Visited:  NewMap[*VisitedVertex](),
+		Heap:     &HeapMin{tree: make([]*VisitedVertex, 0)},
+	}
+}
+
 type Graph struct {
-	Vertexes map[string]map[string]int32
-	Visited  map[string]*VisitedVertex
+	Vertexes *Map[*Map[int32]]
+	Visited  *Map[*VisitedVertex]
 	Heap     *HeapMin
 }
 
-func (g *Graph) AddVertex(vertexNameA, vertexNameB string, weight int32) {
-	if _, ok := g.Vertexes[vertexNameA]; !ok {
-		g.Vertexes[vertexNameA] = make(map[string]int32)
+func (g *Graph) AddVertex(vertexNameA, vertexNameB []byte, weight int32) {
+	if _, ok := g.Vertexes.Get(vertexNameA); !ok {
+		g.Vertexes.Set(vertexNameA, NewMap[int32]())
 	}
-	vertexA := g.Vertexes[vertexNameA]
-	vertexA[vertexNameB] = weight
-	g.Vertexes[vertexNameA] = vertexA
+	vertexA, _ := g.Vertexes.Get(vertexNameA)
+	vertexA.Set(vertexNameB, weight)
 
-	if _, ok := g.Vertexes[vertexNameB]; !ok {
-		g.Vertexes[vertexNameB] = make(map[string]int32)
+	if _, ok := g.Vertexes.Get(vertexNameB); !ok {
+		g.Vertexes.Set(vertexNameB, NewMap[int32]())
 	}
-	vertexB := g.Vertexes[vertexNameB]
-	vertexB[vertexNameA] = weight
-	g.Vertexes[vertexNameB] = vertexB
+	vertexB, _ := g.Vertexes.Get(vertexNameB)
+	vertexB.Set(vertexNameA, weight)
 }
 
-func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
-	if _, ok := g.Vertexes[from]; !ok {
-		return 0, "", fmt.Errorf("%s does not exist in Graph", from)
+func (g *Graph) Calculate(from []byte) (weight int32, path []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("holy cow: \n" + string(debug.Stack()))
+		}
+	}()
+
+	if _, ok := g.Vertexes.Get(from); !ok {
+		return 0, nil, fmt.Errorf("%s does not exist in Graph", string(from))
 	}
 
-	queue := make(chan string, 1)
+	queue := make(chan []byte, 1)
 	defer close(queue)
 	queue <- from
 
 	for currentVertexName := range queue {
-		if _, ok := g.Visited[currentVertexName]; !ok {
-			g.Visited[currentVertexName] = &VisitedVertex{Path: currentVertexName, Name: currentVertexName}
+		if _, ok := g.Visited.Get(currentVertexName); !ok {
+			g.Visited.Set(currentVertexName, &VisitedVertex{Path: currentVertexName, Name: currentVertexName})
 		}
 
-		for neighborVertexName, neighborWeight := range g.Vertexes[currentVertexName] {
-			destinationWeight := g.Visited[currentVertexName].Weight + neighborWeight
+		neighbors, _ := g.Vertexes.Get(currentVertexName)
+		currentVertex, _ := g.Visited.Get(currentVertexName)
+		for neighborVertexName, neighborWeight := range neighbors.Iterator() {
+			destinationWeight := currentVertex.Weight + neighborWeight
 
 			// if vertex has been visited and new weight is bigger than current weight then go to the next neighbor
-			if _, ok := g.Visited[neighborVertexName]; ok && destinationWeight >= g.Visited[neighborVertexName].Weight {
-				continue
-			}
-
-			if _, ok := g.Visited[neighborVertexName]; !ok {
-				g.Visited[neighborVertexName] = &VisitedVertex{Name: neighborVertexName}
+			if visitedNeighbor, ok := g.Visited.Get(neighborVertexName); ok {
+				if destinationWeight >= visitedNeighbor.Weight {
+					continue
+				}
+				g.Heap.Delete(visitedNeighbor.Index)
 			} else {
-				g.Heap.Delete(g.Visited[neighborVertexName].Index)
+				g.Visited.Set(neighborVertexName, &VisitedVertex{Name: neighborVertexName})
 			}
 
-			g.Visited[neighborVertexName].Weight = destinationWeight
-			g.Visited[neighborVertexName].Path = g.Visited[currentVertexName].Path + neighborVertexName
-			g.Heap.Add(g.Visited[neighborVertexName])
+			visitedNeighbor, _ := g.Visited.Get(neighborVertexName)
+			visitedNeighbor.Weight = destinationWeight
+			visitedNeighbor.Path = make([]byte, len(currentVertex.Path))
+			copy(visitedNeighbor.Path, currentVertex.Path)
+			visitedNeighbor.Path = append(visitedNeighbor.Path, neighborVertexName...)
+			g.Heap.Add(visitedNeighbor)
 		}
 
 		newVertexSource := g.Heap.GetRoot()
 		if newVertexSource == nil {
-			// close(queue)
-			return g.Visited[currentVertexName].Weight, g.Visited[currentVertexName].Path, nil
+			return currentVertex.Weight, currentVertex.Path, nil
 		} else {
 			queue <- newVertexSource.Name
 		}
 	}
 
-	return 0, "", nil
+	return 0, nil, nil
 }
 
 func main() {
-	// f, err := os.Create("cpu.pprof")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// pprof.StartCPUProfile(f)
-	// defer pprof.StopCPUProfile()
-
-	fmt.Println("run tests with the following command: go test -race -v main.go main_test.go heapMin.go")
+	fmt.Println("run tests with the following command: go test -cpuprofile=cpu.prof -memprofile=mem.prof -bench .")
+	fmt.Println("go tool pprof -http=:8084 mem.pprof")
+	fmt.Println("go tool pprof -http=:8084 cpu.pprof")
 }
