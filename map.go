@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"iter"
 )
 
@@ -12,7 +11,7 @@ const (
 )
 
 type item[T any] struct {
-	key  []byte
+	key  string
 	data T
 }
 
@@ -21,7 +20,7 @@ type Map[T any] struct {
 	items []*item[T]
 }
 
-func (m *Map[T]) Set(rawKey []byte, data T) {
+func (m *Map[T]) Set(rawKey string, data T) {
 	hashIndex := m.generateHashIndex(rawKey)
 	for hashIndex >= len(m.items)-1 || m.size == len(m.items) {
 		newLen := len(m.items)*2 + 1
@@ -39,15 +38,13 @@ func (m *Map[T]) Set(rawKey []byte, data T) {
 		hashIndex = m.generateHashIndex(rawKey)
 	}
 
-	key := make([]byte, len(rawKey))
-	copy(key, rawKey)
-
-	if m.items[hashIndex] == nil || m.items[hashIndex].key == nil {
+	key := rawKey
+	if m.items[hashIndex] == nil || m.items[hashIndex].key == "" {
 		m.items[hashIndex] = &item[T]{
 			key:  key,
 			data: data,
 		}
-	} else if bytes.Equal(m.items[hashIndex].key, rawKey) {
+	} else if m.items[hashIndex].key == rawKey {
 		m.items[hashIndex].data = data
 	} else {
 		// find next free slot
@@ -70,19 +67,19 @@ func (m *Map[T]) Set(rawKey []byte, data T) {
 	m.size += 1
 }
 
-func (m *Map[T]) Get(rawKey []byte) (T, bool) {
+func (m *Map[T]) Get(rawKey string) (T, bool) {
 	hashIndex := m.generateHashIndex(rawKey)
 	if hashIndex >= len(m.items) || m.items[hashIndex] == nil {
 		var zero T // zero value of T
 		return zero, false
 	}
 
-	if bytes.Equal(m.items[hashIndex].key, rawKey) {
+	if m.items[hashIndex].key == rawKey {
 		return m.items[hashIndex].data, true
 	}
 
 	for i := hashIndex + 1; i < len(m.items); i++ {
-		if m.items[i] != nil && len(m.items[i].key) == len(rawKey) && bytes.Equal(m.items[i].key, rawKey) {
+		if m.items[i] != nil && len(m.items[i].key) == len(rawKey) && m.items[i].key == rawKey {
 			return m.items[i].data, true
 		}
 		if i == len(m.items)-1 {
@@ -98,8 +95,8 @@ func (m *Map[T]) Get(rawKey []byte) (T, bool) {
 	return zero, false
 }
 
-func (m *Map[T]) Iterator() iter.Seq2[[]byte, T] {
-	return func(yield func([]byte, T) bool) {
+func (m *Map[T]) Iterator() iter.Seq2[string, T] {
+	return func(yield func(string, T) bool) {
 		for _, item := range m.items {
 			if item != nil && !yield(item.key, item.data) {
 				return
@@ -108,7 +105,7 @@ func (m *Map[T]) Iterator() iter.Seq2[[]byte, T] {
 	}
 }
 
-func (m *Map[T]) generateHashIndex(hashData []byte) int {
+func (m *Map[T]) generateHashIndex(hashData string) int {
 	hash := uint64(offset64)
 	for _, data := range hashData {
 		hash ^= uint64(data) // FNV-1a is XOR then *
