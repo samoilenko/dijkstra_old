@@ -23,7 +23,7 @@ type Map[T any] struct {
 
 func (m *Map[T]) Set(rawKey []byte, data T) {
 	hashIndex := m.generateHashIndex(rawKey)
-	if hashIndex >= len(m.items)-1 {
+	for hashIndex >= len(m.items)-1 || m.size == len(m.items) {
 		newLen := len(m.items)*2 + 1
 		tmp := &Map[T]{
 			size:  0,
@@ -51,7 +51,7 @@ func (m *Map[T]) Set(rawKey []byte, data T) {
 		m.items[hashIndex].data = data
 	} else {
 		// find next free slot
-		for i := hashIndex + 1; i < len(m.items)-1; i++ {
+		for i := hashIndex + 1; i < len(m.items); i++ {
 			if m.items[i] == nil {
 				m.items[i] = &item[T]{
 					key:  key,
@@ -81,8 +81,8 @@ func (m *Map[T]) Get(rawKey []byte) (T, bool) {
 		return m.items[hashIndex].data, true
 	}
 
-	for i := hashIndex + 1; i < len(m.items)-1; i++ {
-		if m.items[i] != nil && bytes.Equal(m.items[i].key, rawKey) {
+	for i := hashIndex + 1; i < len(m.items); i++ {
+		if m.items[i] != nil && len(m.items[i].key) == len(rawKey) && bytes.Equal(m.items[i].key, rawKey) {
 			return m.items[i].data, true
 		}
 		if i == len(m.items)-1 {
@@ -122,9 +122,15 @@ func (m *Map[T]) generateHashIndex(hashData []byte) int {
 	return int(hash & uint64(len(m.items)-1))
 }
 
-func NewMap[T any]() *Map[T] {
+func NewMap[T any](initLen int) *Map[T] {
+	var mapLen int
+	if initLen > 0 {
+		mapLen = initLen
+	} else {
+		mapLen = 1
+	}
 	return &Map[T]{
 		size:  0,
-		items: make([]*item[T], 1),
+		items: make([]*item[T], mapLen),
 	}
 }
