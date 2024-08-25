@@ -5,8 +5,8 @@ import (
 )
 
 type VisitedVertex struct {
-	Name   []byte
-	Path   []byte
+	Name   string
+	Path   string
 	Weight int32
 	Index  int
 }
@@ -21,8 +21,8 @@ func (v *VisitedVertex) SetIndex(index int) {
 
 func NewGraph() *Graph {
 	return &Graph{
-		Vertexes: NewMap[*Map[int32]](0),
-		Visited:  NewMap[*VisitedVertex](0),
+		Vertexes: NewMap[*Map[int32]](10000),
+		Visited:  NewMap[*VisitedVertex](100),
 		Heap:     &HeapMin{tree: make([]*VisitedVertex, 0)},
 	}
 }
@@ -33,7 +33,7 @@ type Graph struct {
 	Heap     *HeapMin
 }
 
-func (g *Graph) AddVertex(vertexNameA, vertexNameB []byte, weight int32) {
+func (g *Graph) AddVertex(vertexNameA, vertexNameB string, weight int32) {
 	if _, ok := g.Vertexes.Get(vertexNameA); !ok {
 		g.Vertexes.Set(vertexNameA, NewMap[int32](0))
 	}
@@ -47,18 +47,12 @@ func (g *Graph) AddVertex(vertexNameA, vertexNameB []byte, weight int32) {
 	vertexB.Set(vertexNameA, weight)
 }
 
-func (g *Graph) Calculate(from []byte) (weight int32, path []byte, err error) {
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		fmt.Println("holy cow: \n" + string(debug.Stack()))
-	// 	}
-	// }()
-
+func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 	if _, ok := g.Vertexes.Get(from); !ok {
-		return 0, nil, fmt.Errorf("%s does not exist in Graph", string(from))
+		return 0, "", fmt.Errorf("%s does not exist in Graph", string(from))
 	}
 
-	queue := make(chan []byte, 1)
+	queue := make(chan string, 1)
 	defer close(queue)
 	queue <- from
 
@@ -84,9 +78,7 @@ func (g *Graph) Calculate(from []byte) (weight int32, path []byte, err error) {
 
 			visitedNeighbor, _ := g.Visited.Get(neighborVertexName)
 			visitedNeighbor.Weight = destinationWeight
-			visitedNeighbor.Path = make([]byte, len(currentVertex.Path))
-			copy(visitedNeighbor.Path, currentVertex.Path)
-			visitedNeighbor.Path = append(visitedNeighbor.Path, neighborVertexName...)
+			visitedNeighbor.Path = currentVertex.Path + neighborVertexName
 			g.Heap.Add(visitedNeighbor)
 		}
 
@@ -98,7 +90,7 @@ func (g *Graph) Calculate(from []byte) (weight int32, path []byte, err error) {
 		}
 	}
 
-	return 0, nil, nil
+	return 0, "", nil
 }
 
 func main() {
