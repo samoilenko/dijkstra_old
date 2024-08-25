@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"runtime/debug"
 )
 
 type VisitedVertex struct {
@@ -22,8 +21,8 @@ func (v *VisitedVertex) SetIndex(index int) {
 
 func NewGraph() *Graph {
 	return &Graph{
-		Vertexes: NewMap[*Map[int32]](),
-		Visited:  NewMap[*VisitedVertex](),
+		Vertexes: NewMap[*Map[int32]](0),
+		Visited:  NewMap[*VisitedVertex](0),
 		Heap:     &HeapMin{tree: make([]*VisitedVertex, 0)},
 	}
 }
@@ -36,24 +35,24 @@ type Graph struct {
 
 func (g *Graph) AddVertex(vertexNameA, vertexNameB []byte, weight int32) {
 	if _, ok := g.Vertexes.Get(vertexNameA); !ok {
-		g.Vertexes.Set(vertexNameA, NewMap[int32]())
+		g.Vertexes.Set(vertexNameA, NewMap[int32](0))
 	}
 	vertexA, _ := g.Vertexes.Get(vertexNameA)
 	vertexA.Set(vertexNameB, weight)
 
 	if _, ok := g.Vertexes.Get(vertexNameB); !ok {
-		g.Vertexes.Set(vertexNameB, NewMap[int32]())
+		g.Vertexes.Set(vertexNameB, NewMap[int32](0))
 	}
 	vertexB, _ := g.Vertexes.Get(vertexNameB)
 	vertexB.Set(vertexNameA, weight)
 }
 
 func (g *Graph) Calculate(from []byte) (weight int32, path []byte, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("holy cow: \n" + string(debug.Stack()))
-		}
-	}()
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		fmt.Println("holy cow: \n" + string(debug.Stack()))
+	// 	}
+	// }()
 
 	if _, ok := g.Vertexes.Get(from); !ok {
 		return 0, nil, fmt.Errorf("%s does not exist in Graph", string(from))

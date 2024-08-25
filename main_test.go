@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 )
 
@@ -48,20 +49,30 @@ func BenchmarkDijkstra(b *testing.B) {
 	graph := NewGraph()
 
 	// Generate fixtures
-	for i := 0; i < 100; i++ {
-		for j := i + 1; j < 100; j++ {
+	bufferA := make([]byte, 0, 10) // Preallocate buffer size based on expected length
+	bufferB := make([]byte, 0, 10)
+
+	for i := 0; i < 10000; i++ {
+		bufferA = bufferA[:0] // Reset buffer without reallocating
+		bufferA = append(bufferA, 'A')
+		bufferA = strconv.AppendInt(bufferA, int64(i), 10)
+
+		for j := i + 1; j < 10000; j++ {
+			bufferB = bufferB[:0]
+			bufferB = append(bufferB, 'A')
+			bufferB = strconv.AppendInt(bufferB, int64(j), 10)
+
 			graph.AddVertex(
-				[]byte{byte('A' + i)},
-				[]byte{byte('A' + j)},
+				bufferA,
+				bufferB,
 				int32(i+j),
 			)
 		}
 	}
 
 	b.ResetTimer()
-
 	for i := 0; i < b.N; i++ {
-		_, _, err := graph.Calculate([]byte{'A'})
+		_, _, err := graph.Calculate([]byte("A0"))
 		if err != nil {
 			b.Fatal(err)
 		}
