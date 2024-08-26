@@ -20,21 +20,23 @@ type Map[T any] struct {
 	items []*item[T]
 }
 
+func (m *Map[T]) reHash() {
+	newLen := len(m.items)*2 + 1
+	items := m.items
+	m.items = make([]*item[T], newLen)
+	m.size = 0
+
+	for _, item := range items {
+		if item != nil {
+			m.Set(item.key, item.data)
+		}
+	}
+}
+
 func (m *Map[T]) Set(rawKey string, data T) {
 	hashIndex := m.generateHashIndex(rawKey)
 	for hashIndex >= len(m.items)-1 || m.size == len(m.items) {
-		newLen := len(m.items)*2 + 1
-		tmp := &Map[T]{
-			size:  0,
-			items: make([]*item[T], newLen),
-		}
-
-		for _, item := range m.items {
-			if item != nil {
-				tmp.Set(item.key, item.data)
-			}
-		}
-		m.items = tmp.items
+		m.reHash()
 		hashIndex = m.generateHashIndex(rawKey)
 	}
 
