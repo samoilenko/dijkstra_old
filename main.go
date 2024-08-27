@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/dolthub/swiss"
+	"github.com/samoilenko/swiss"
 )
 
 type VisitedVertex struct {
@@ -67,13 +67,13 @@ func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 
 		neighbors, _ := g.Vertexes.Get(currentVertexName)
 		currentVertex, _ := g.Visited.Get(currentVertexName)
-		neighbors.Iter(func(neighborVertexName string, neighborWeight int32) bool {
+		for neighborVertexName, neighborWeight := range neighbors.Iterator() {
 			destinationWeight := currentVertex.Weight + neighborWeight
 
 			// if vertex has been visited and new weight is bigger than current weight then go to the next neighbor
 			if visitedNeighbor, ok := g.Visited.Get(neighborVertexName); ok {
 				if destinationWeight >= visitedNeighbor.Weight {
-					return false
+					continue
 				}
 				g.Heap.Delete(visitedNeighbor.Index)
 			} else {
@@ -84,9 +84,7 @@ func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 			visitedNeighbor.Weight = destinationWeight
 			visitedNeighbor.Path = currentVertex.Path + neighborVertexName
 			g.Heap.Add(visitedNeighbor)
-
-			return false
-		})
+		}
 
 		newVertexSource := g.Heap.GetRoot()
 		if newVertexSource == nil {
