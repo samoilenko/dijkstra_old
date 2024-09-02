@@ -14,3 +14,10 @@ https://www.geeksforgeeks.org/introduction-to-heap/
 3. https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1a_hash
 4. https://github.com/dolthub/swiss
 
+
+### different iterators
+1. https://github.com/ewencp/golang-iterators-benchmark/blob/master/iterator.go
+
+### fuzz tests
+1. https://www.youtube.com/watch?v=aw7lFSFGKZs&list=WL&index=55
+2. https://go.dev/doc/security/fuzz/

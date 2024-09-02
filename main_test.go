@@ -44,6 +44,51 @@ func TestDijkstra(t *testing.T) {
 	}
 }
 
+func FuzzCalculation(f *testing.F) {
+	graph := NewGraph()
+
+	graph.AddVertex("D", "A", 4)
+	graph.AddVertex("D", "E", 2)
+	graph.AddVertex("A", "E", 4)
+	graph.AddVertex("A", "C", 4)
+	graph.AddVertex("E", "G", 5)
+	graph.AddVertex("E", "G", 1)
+	graph.AddVertex("E", "C", 4)
+	graph.AddVertex("C", "G", 5)
+	graph.AddVertex("C", "F", 5)
+	graph.AddVertex("C", "B", 2)
+	graph.AddVertex("G", "F", 5)
+	graph.AddVertex("B", "F", 2)
+
+	// const expectedWeight = 10
+
+	f.Add("D")
+	f.Fuzz(func(t *testing.T, vertexName string) {
+		graph.Calculate(vertexName)
+	})
+}
+
+func FuzzAdd(f *testing.F) {
+	graph := NewGraph()
+
+	f.Add("D", "A", 4)
+	f.Add("D", "E", 2)
+	f.Add("A", "E", 4)
+	f.Add("A", "C", 4)
+	f.Add("E", "G", 5)
+	f.Add("E", "G", 1)
+	f.Add("E", "C", 4)
+	f.Add("C", "G", 5)
+	f.Add("C", "F", 5)
+	f.Add("C", "B", 2)
+	f.Add("G", "F", 5)
+	f.Add("B", "F", 2)
+
+	f.Fuzz(func(t *testing.T, vertexAName, vertexBName string, weight int) {
+		graph.AddVertex(vertexAName, vertexBName, int32(weight))
+	})
+}
+
 func BenchmarkDijkstra(b *testing.B) {
 	graph := NewGraph()
 
