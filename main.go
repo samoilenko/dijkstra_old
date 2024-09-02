@@ -99,6 +99,7 @@ func (g *Graph) Calculate(from string) (weight int32, path string, err error) {
 
 func main() {
 	fmt.Println("run tests with the following command: go test -cpuprofile=cpu.prof -memprofile=mem.prof -bench .")
+	fmt.Println("run fuzz tests with the following command: go test -v -fuzz=<fuzzTestName>")
 	fmt.Println("go tool pprof -http=:8084 mem.prof")
 	fmt.Println("go tool pprof -http=:8084 cpu.prof")
 }
